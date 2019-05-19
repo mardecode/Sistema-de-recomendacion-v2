@@ -15,6 +15,7 @@ T* cuda_array(int n){
   return arr;
 }
 
+
 // template to copy array from host to device
 template <class T>
 void cuda_H2D(T* h_arr, T* d_arr, int n){
