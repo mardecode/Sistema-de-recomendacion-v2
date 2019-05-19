@@ -1,12 +1,12 @@
-CXX		  := g++
-CXX_FLAGS := -Wall -Wextra -std=c++17 -ggdb
+CXX		  := nvcc
+CXX_FLAGS := -std=c++14
 
 BIN		:= bin
 SRC		:= src
 INCLUDE	:= include
 LIB		:= lib
 
-LIBRARIES	:= -lpistache -lpthread
+LIBRARIES	:= 
 EXECUTABLE	:= main
 
 
@@ -16,7 +16,7 @@ run: clean all
 	clear
 	time ./$(BIN)/$(EXECUTABLE)
 
-$(BIN)/$(EXECUTABLE): $(SRC)/*.cpp
+$(BIN)/$(EXECUTABLE): $(SRC)/*.cu
 	$(CXX) $(CXX_FLAGS) -I$(INCLUDE) -L$(LIB) $^ -o $@ $(LIBRARIES)
 
 clean:

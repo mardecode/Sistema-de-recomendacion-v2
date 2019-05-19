@@ -94,12 +94,13 @@ void n_of_users(string path, int& n_ratings, int& n_users, bool header){
 }
 
 void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float*& values, int*& row_ind, int*& col_ind, int*& ind_users, int*& row_size, string version){
-  string path_b = "binary_files/";
+  string path_b = "binarios/";
+  int max_users = 300000;
   values = new float[n_ratings];
   row_ind = new int[n_ratings];
   col_ind = new int[n_ratings];
-  ind_users = new int[n_users];
-  row_size = new int[n_users];
+  ind_users = new int[max_users];
+  row_size = new int[max_users];
 
   if(fexists(path_b + "values_" + version) && fexists(path_b + "row_ind_" + version) && fexists(path_b + "col_ind_" + version) && fexists(path_b + "ind_users_" + version) && fexists(path_b + "row_size_" + version)){
     cout<<"Reading values"<<endl;
@@ -109,9 +110,9 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
     cout<<"Reading col_ind"<<endl;
     read_array<int>(col_ind, n_ratings, path_b + "col_ind_" + version);
     cout<<"Reading ind_users"<<endl;
-    read_array<int>(ind_users, n_users, path_b + "ind_users_" + version);
+    read_array<int>(ind_users, max_users, path_b + "ind_users_" + version);
     cout<<"Reading row_size"<<endl;
-    read_array<int>(row_size, n_users, path_b + "row_size_" + version);
+    read_array<int>(row_size, max_users, path_b + "row_size_" + version);
   }
   else{
     ifstream infile(path);
@@ -132,9 +133,9 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
       curr_rating = atof(tokens[2].c_str());
       if(id_user < curr_id_user){
         if(id_user != -1)
-        row_size[users_counter - 1] = n_r;
+          row_size[id_user] = n_r;
         n_r = 0;
-        ind_users[users_counter] = ratings_counter;
+        ind_users[curr_id_user] = ratings_counter;
         id_user = curr_id_user;
         users_counter++;
       }
@@ -146,7 +147,8 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
       ratings_counter++;
     }
     cout<<ratings_counter<<" - "<<users_counter<<endl;
-    row_size[n_users - 1] = n_r;
+    // row_size[n_users - 1] = n_r;
+    row_size[curr_id_user] = n_r;
 
     cout<<"Writing values"<<endl;
     write_array<float>(values, n_ratings, path_b + "values_" + version);
@@ -155,9 +157,9 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
     cout<<"Writing col_ind"<<endl;
     write_array<int>(col_ind, n_ratings, path_b + "col_ind_" + version);
     cout<<"Writing ind_users"<<endl;
-    write_array<int>(ind_users, n_users, path_b + "ind_users_" + version);
+    write_array<int>(ind_users, max_users, path_b + "ind_users_" + version);
     cout<<"Writing row_size"<<endl;
-    write_array<int>(row_size, n_users, path_b + "row_size_" + version);
+    write_array<int>(row_size, max_users, path_b + "row_size_" + version);
 
   }
 
