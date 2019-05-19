@@ -18,8 +18,8 @@ int main(int argc, char const *argv[]) {
   // n_ratings = n_ratings_20;
   // n_users = n_users_20;
 
-  n_ratings = n_ratings_27;
-  n_users = n_users_27;
+  n_ratings = n_ratings_l;
+  n_users = n_users_l;
 
   int max_users = 300000;
 
@@ -36,11 +36,27 @@ int main(int argc, char const *argv[]) {
   int *d_row_ind, * d_col_ind;
   int * d_ind_users, * d_row_size;
 
+  float* item_values;
+  int *item_row_ind, * item_col_ind;
+  int * ind_items, *item_row_size;
+
+  float* d_item_values;
+  int *d_item_row_ind, * d_item_col_ind;
+  int * d_ind_items, *d_item_row_size;
+
   d_values = cuda_array<float>(n_ratings);
   d_row_ind = cuda_array<int>(n_ratings);
   d_col_ind = cuda_array<int>(n_ratings);
   d_ind_users = cuda_array<int>(max_users);
   d_row_size = cuda_array<int>(max_users);
+
+  d_item_values = cuda_array<float>(n_ratings);
+  d_item_row_ind = cuda_array<int>(n_ratings);
+  d_item_col_ind = cuda_array<int>(n_ratings);
+  d_ind_items = cuda_array<int>(n_movies);
+  d_item_row_size = cuda_array<int>(n_movies);
+
+
 
   map<int, string> movies_names;
 
@@ -48,12 +64,20 @@ int main(int argc, char const *argv[]) {
   // read_ML_ratings("../databases/ml-20m/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
 
   // read_ML_movies("../../collaborative_filtering/databases/ml-latest/movies.csv", movies_names, true);
-  read_ML_ratings("../collaborative_filtering/databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
+  // read_ML_ratings("../collaborative_filtering/databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
+  read_ML_ratings("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "l");
 
   cuda_H2D<float>(values, d_values, n_ratings);
   cuda_H2D<int>(row_ind, d_row_ind, n_ratings);
   cuda_H2D<int>(col_ind, d_col_ind, n_ratings);
   cuda_H2D<int>(ind_users, d_ind_users, max_users);
   cuda_H2D<int>(row_size, d_row_size, max_users);
+
+  float* r1 = float_pointer(values, ind_users, 8);
+  int* c1 = int_pointer(col_ind, ind_users, 8);
+  for (size_t i = 0; i < row_size[8]; i++) {
+    cout<<c1[i]<<" "<<r1[i]<<endl;
+  }
+
   return 0;
 }

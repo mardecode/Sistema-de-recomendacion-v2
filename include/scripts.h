@@ -165,16 +165,93 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
 
 }
 
-void mapa_peliculas(int n_ratings, int n_users, float*& values, int*& row_ind, int*& col_ind, int*& ind_users, int*& row_size, map<int, float>*& map_movies){
-  map_movies = new map<int, float>[n_users];
-  for (size_t i = 0; i < n_users; i++) {
-    float* vals = float_pointer(values, ind_users, i);
-    int* ids_movies = int_pointer(col_ind, ind_users, i);
-    for (size_t j = 0; j < row_size[i]; j++) {
-      map_movies[i][ids_movies[j]] = vals[j];
+
+void read_ML_ratings_items(string path, int n_ratings, int n_users, int n_movies, int n_ids_movies, bool header, float*& item_values, int*& item_row_ind, int*& item_col_ind, int*& ind_items, int*& item_row_size, string version, int*& pos_movies){
+  string path_b = "binarios/";
+
+  item_values = new float[n_ratings];
+  item_row_ind = new int[n_ratings];
+  item_col_ind = new int[n_ratings];
+  ind_items = new int[n_movies];
+  item_row_size = new int[n_movies];
+  pos_movies = new int[n_ids_movies];
+
+  if(fexists(path_b + "item_values_" + version) && fexists(path_b + "item_row_ind_" + version) && fexists(path_b + "item_col_ind_" + version) && fexists(path_b + "ind_item_" + version) && fexists(path_b + "item_row_size_" + version) && fexists(path_b + "pos_movies_" + version)){
+    cout<<"Reading item_values"<<endl;
+    read_array<float>(item_values, n_ratings, path_b + "item_values_" + version);
+    cout<<"Reading item_row_ind"<<endl;
+    read_array<int>(item_row_ind, n_ratings, path_b + "item_row_ind_" + version);
+    cout<<"Reading item_col_ind"<<endl;
+    read_array<int>(item_col_ind, n_ratings, path_b + "item_col_ind_" + version);
+    cout<<"Reading ind_items"<<endl;
+    read_array<int>(ind_items, n_movies, path_b + "ind_item_" + version);
+    cout<<"Reading item_row_size"<<endl;
+    read_array<int>(item_row_size, n_movies, path_b + "item_row_size_" + version);
+    cout<<"Reading pos_movies"<<endl;
+    read_array<int>(pos_movies, n_ids_movies, path_b + "pos_movies_" + version);
+  }else{
+    ifstream infile(path);
+    string line;
+    int n_movies;
+    if(header) getline(infile, line);
+    vector<string> tokens;
+
+    map<int, map<int, float>* > map_movies_items;
+    int cont = 0;
+    while (getline(infile, line)) {
+      if(cont % 1000000 == 0)
+        cout<<cont<<endl;
+      tokens = split(line, ',');
+      auto it = map_movies_items.find(atoi(tokens[1].c_str()));
+      if(it == map_movies_items.end()){
+        map<int, float> * mapa = new map<int, float>();
+        map_movies_items[atoi(tokens[1].c_str())] = mapa;
+      }
+      (*(map_movies_items[atoi(tokens[1].c_str())]))[atoi(tokens[0].c_str())] = atof(tokens[2].c_str());
+      cont++;
     }
+
+    n_movies = map_movies_items.size();
+    cout<<"Numero de peliculas: "<<n_movies<<endl;
+
+    int i = 0;
+    int j = 0;
+    auto it = map_movies_items.begin();
+    while (it != map_movies_items.end()) {
+      pos_movies[it->first] = j;
+      auto ite = it->second->begin();
+      ind_items[j] = i;
+      item_row_size[j] = it->second->size();
+      while (ite != it->second->end()) {
+        item_values[i] = ite->second;
+        item_row_ind[i] = it->first;
+        item_col_ind[i] = ite->first;
+        i++;
+        ite++;
+      }
+      j++;
+      it++;
+    }
+    cout<<"Writing item_values"<<endl;
+    write_array<float>(item_values, n_ratings, path_b + "item_values_" + version);
+    cout<<"Writing item_row_ind"<<endl;
+    write_array<int>(item_row_ind, n_ratings, path_b + "item_row_ind_" + version);
+    cout<<"Writing item_col_ind"<<endl;
+    write_array<int>(item_col_ind, n_ratings, path_b + "item_col_ind_" + version);
+    cout<<"Writing ind_items"<<endl;
+    write_array<int>(ind_items, n_movies, path_b + "ind_item_" + version);
+    cout<<"Writing item_row_size"<<endl;
+    write_array<int>(item_row_size, n_movies, path_b + "item_row_size_" + version);
+    cout<<"Writing pos_movies"<<endl;
+    write_array<int>(pos_movies, n_ids_movies, path_b + "pos_movies_" + version);
+
+
   }
+
 }
+
+
+
 
 void read_ML_movies(string path, map<int, string>& movie_names, bool header){
   ifstream infile(path);

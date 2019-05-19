@@ -14,7 +14,7 @@ all: $(BIN)/$(EXECUTABLE)
 
 run: clean all
 	clear
-	time ./$(BIN)/$(EXECUTABLE)
+	./$(BIN)/$(EXECUTABLE)
 
 $(BIN)/$(EXECUTABLE): $(SRC)/*.cu
 	$(CXX) $(CXX_FLAGS) -I$(INCLUDE) -L$(LIB) $^ -o $@ $(LIBRARIES)
