@@ -218,7 +218,7 @@ void read_ML_ratings_items(string path, int n_ratings, int n_users, int n_movies
     int j = 0;
     auto it = map_movies_items.begin();
     while (it != map_movies_items.end()) {
-      pos_movies[it->first] = j;
+      // pos_movies[it->first] = j;
       auto ite = it->second->begin();
       ind_items[j] = i;
       item_row_size[j] = it->second->size();

@@ -1,13 +1,16 @@
 #include "scripts.h"
 #include "structures.h"
 #include "cud_defs.h"
+#include "distances.h"
+
 
 int main(int argc, char const *argv[]) {
-  int n_ratings, n_users;
-  int n_ratings_20, n_users_20, n_ratings_27, n_users_27, n_ratings_l, n_users_l;
+  int n_ratings, n_users, n_movies;
+  int n_ratings_20, n_users_20, n_ratings_27, n_users_27, n_ratings_l, n_users_l, n_movies_27;
 
   n_ratings_27 = 27753444;
   n_users_27 = 283228;
+  n_movies_27 = 53889;
 
   n_ratings_20 = 20000263;
   n_users_20 = 138493;
@@ -20,6 +23,7 @@ int main(int argc, char const *argv[]) {
 
   n_ratings = n_ratings_l;
   n_users = n_users_l;
+  n_movies = n_movies_27;
 
   int max_users = 300000;
 
