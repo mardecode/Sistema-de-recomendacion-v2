@@ -117,5 +117,53 @@ vector<pair<int, float> > knn_greater_cuda(float* distances, bool* b_dists, int 
 }
 
 
+vector<pair<int, float> > knn_less_cuda(float* distances, bool* b_dists, int max_users, int user_id, int k){
+  // float* t_distances; int* t_pos_users;
+  // t_distances = new float[n_users]; t_pos_users = new int[n_users];
+  // ids_users = new int[k]; dists_users = new float[k];
+  vector<pair<int, float> > knns(k);
+  int n = 0;
+  for (size_t i = 0; i < max_users; i++) {
+    if(b_dists[i])
+      n++;
+  }
+
+
+  thrust::host_vector<float> t_distances(n);
+  thrust::host_vector<int> t_ids_users(n);
+  thrust::device_vector<float> d_t_distances;
+  thrust::device_vector<int> d_t_ids_users;
+
+  int c = 0;
+  for (size_t i = 0; i < max_users; i++) {
+    if (b_dists[i] && (i != user_id)) {
+      t_distances[c] = distances[i];
+      t_ids_users[c] = i;
+      c++;
+    }
+  }
+
+  d_t_distances = t_distances;
+  d_t_ids_users = t_ids_users;
+
+
+  reloj r;
+  r.start();
+  thrust::sort_by_key(d_t_distances.begin(), d_t_distances.begin() + n, d_t_ids_users.begin());
+
+  thrust::copy(d_t_distances.begin(), d_t_distances.end(), t_distances.begin());
+  thrust::copy(d_t_ids_users.begin(), d_t_ids_users.end(), t_ids_users.begin());
+  r.stop();
+  cout<<"Cuda knns: "<<r.time()<<"ms"<<endl;
+
+  for (size_t i = 0; i < k; i++) {
+    knns[i] = make_pair(t_ids_users[i], t_distances[i]);
+    // dists_users[i] = t_distances[n - i - 1];
+    // ids_users[i] = t_ids_users[n - i - 1];
+  }
+  return knns;
+}
+
+
 
 #endif

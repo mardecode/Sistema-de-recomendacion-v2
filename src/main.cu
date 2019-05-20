@@ -101,12 +101,19 @@ int main(int argc, char const *argv[]) {
   float *distances;
   bool * b_dists;
   vector<pair<int, float> > knns;
-  int id_user = 16006;
+  // int id_user = 16006;
+  int id_user = 30503;
+  int measure = MANHATTAN;
   int k = 10;
   reloj r;
   r.start();
-  distances_one2all(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, PEARSON);
-  knns = knn_greater_cuda(distances, b_dists, max_users, id_user, k);
+  distances_one2all(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure);
+  if(measure == PEARSON){
+    knns = knn_greater_cuda(distances, b_dists, max_users, id_user, k);
+  }
+  else{
+    knns = knn_less_cuda(distances, b_dists, max_users, id_user, k);
+  }
   r.stop();
   cout<<"Tiempo total: "<<r.time()<<"ms"<<endl;
   for (size_t i = 0; i < k; i++) {
