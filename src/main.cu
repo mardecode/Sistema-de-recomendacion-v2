@@ -3,6 +3,7 @@
 #include "cud_defs.h"
 #include "distances.h"
 #include "knn.h"
+#include "recomender.h"
 
 // PISTACHE HEADERS
 #include <pistache/endpoint.h>
@@ -60,6 +61,7 @@ float* d_values;
 int *d_row_ind, * d_col_ind;
 int * d_ind_users, * d_row_size;
 
+
 float* item_values;
 int *item_row_ind, * item_col_ind;
 int * ind_items, *item_row_size;
@@ -108,9 +110,13 @@ struct HelloHandler : public Http::Handler {
                 r.start();
                 distances_one2all(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure);
                 if(measure == PEARSON){
+                  cout << " PEARSON " << measure <<endl;
+                  cout << " PEARSON " << measure <<endl;
+
                   knns = knn_greater_cuda(distances, b_dists, max_users, id_user, k);
                 }
                 else{
+                  cout << " OTROS " << measure <<endl;
                   knns = knn_less_cuda(distances, b_dists, max_users, id_user, k);
                 }
                 r.stop();
@@ -123,10 +129,24 @@ struct HelloHandler : public Http::Handler {
                   salida += "\"distancia\": " + to_string(knns[i].second) + "}" ; 
                   if (i!=k-1) salida += ",";
                 }
+                salida += "],\"recomendacion\": ["; 
+                
+                vector<int> contador;
+                vector<int> ids_movies;
+                vector<float> movies_ratings;
+                k_recomendaciones_propuesta(contador, ids_movies, movies_ratings, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure, k);
+                cout << "Recomendado " << endl;
+                for(int mi = 0; mi<ids_movies.size();++mi ){
+                    salida += "{\"idItem\":" + to_string(ids_movies.at(mi) ) + ",";
+                    salida += " \"rating\": " + to_string(movies_ratings.at(mi) ) + "}";
+                    // salida += " \"nombre\": \"" + rec.first->nombre + " \" } ";
+                    if (mi!=k-1) salida += ",";
+                }
                 salida+= "]";
                 salida += ",\"time\":  " +  to_string(r.time()) ; 
                 salida += "}";
 
+                
                 
       
                 // //KNN PROCEDURE

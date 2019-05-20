@@ -154,8 +154,12 @@ void distances_one2all_euclidean(float*& distances,  bool*& b_dists, float* valu
     euclidean_x_item<<<grid, block>>>(d_item_values, d_ind_items, d_item_col_ind, d_distances, d_b_dists, ratings_user[i], n_users_x_movie, ids_movies[i]);
     CHECK(cudaDeviceSynchronize());
   }
-  cuda_D2H(d_distances, distances, max_users);
+cuda_D2H(d_distances, distances, max_users);
   cuda_D2H(d_b_dists, b_dists, max_users);
+  for (size_t i = 0; i < max_users; i++) {
+    if(b_dists[i])
+      distances[i] = sqrt(distances[i]);
+  }
 
   // set<pair<float, int>, decltype(&compare_greater)> mapa(&compare_greater);
   // set<pair<float, int>, less<pair<float, int> > > mapa;
@@ -258,10 +262,13 @@ void distances_one2all(float*& distances, bool*& b_dists, float* values, int* ro
   r.start();
   switch (measure) {
     case EUCLIDEAN: distances_one2all_euclidean(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user);
+      cout << " Euclidiana " << endl;
       break;
     case PEARSON: distances_one2all_pearson(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user);
+      cout << " Pearson " << endl;
       break;
     case MANHATTAN: distances_one2all_manhattan(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user);
+    cout << " Manhattam " << endl;
       break;
   }
   r.stop();
