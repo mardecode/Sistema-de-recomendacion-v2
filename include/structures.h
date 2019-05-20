@@ -4,7 +4,7 @@
 // #define n_ratings 27753444
 // #define n_users 283228
 enum Measures {
-EUCLIDEAN, MANHATTAN, PEARSON, COSINE
+MANHATTAN, EUCLIDEAN, PEARSON, COSINE
 };
 
 
