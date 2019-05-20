@@ -1,12 +1,12 @@
 CXX		  := nvcc
-CXX_FLAGS := -std=c++14
+CXX_FLAGS := -std=c++14 
 
 BIN		:= bin
 SRC		:= src
 INCLUDE	:= include
 LIB		:= lib
 
-LIBRARIES	:= 
+LIBRARIES	:= -lpistache
 EXECUTABLE	:= main
 
 

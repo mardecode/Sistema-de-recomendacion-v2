@@ -3,6 +3,7 @@
 #include "cud_defs.h"
 #include "distances.h"
 #include "knn.h"
+#include "server.h"
 
 int main(int argc, char const *argv[]) {
   int n_ratings, n_users, n_movies;
@@ -116,6 +117,6 @@ int main(int argc, char const *argv[]) {
   // for (size_t i = 0; i < row_size[8]; i++) {
   //   cout<<c1[i]<<" "<<r1[i]<<endl;
   // }
-
+  Http::listenAndServe<HelloHandler>("*:9081");
   return 0;
 }
