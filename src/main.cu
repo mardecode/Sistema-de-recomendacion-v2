@@ -2,7 +2,7 @@
 #include "structures.h"
 #include "cud_defs.h"
 #include "distances.h"
-
+#include "knn.h"
 
 int main(int argc, char const *argv[]) {
   int n_ratings, n_users, n_movies;
@@ -98,12 +98,19 @@ int main(int argc, char const *argv[]) {
 
 
   float *distances;
-  int id_user = 30503;
+  bool * b_dists;
+  vector<pair<int, float> > knns;
+  int id_user = 16006;
+  int k = 10;
   reloj r;
   r.start();
-  distances_one2all_manhattan(distances, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user);
+  distances_one2all(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, PEARSON);
+  knns = knn_greater_cuda(distances, b_dists, max_users, id_user, k);
   r.stop();
-  cout<<r.time()<<"ms"<<endl;
+  cout<<"Tiempo total: "<<r.time()<<"ms"<<endl;
+  for (size_t i = 0; i < k; i++) {
+    cout<<knns[i].first<<" "<<knns[i].second<<endl;
+  }
   // float* r1 = float_pointer(values, ind_users, 8);
   // int* c1 = int_pointer(col_ind, ind_users, 8);
   // for (size_t i = 0; i < row_size[8]; i++) {
