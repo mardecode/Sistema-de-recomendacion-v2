@@ -4,54 +4,17 @@
 #include "distances.h"
 #include "knn.h"
 #include "recomender.h"
+#include <pthread.h>
 
-// PISTACHE HEADERS
-#include <pistache/endpoint.h>
-//sudo apt-get install libssl-dev
-//https://github.com/oktal/pistache
-using namespace Pistache;
 
-//RAPIDJSON HEADERS
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
-using namespace rapidjson;
-//http://rapidjson.org/index.html
-
-#include <string>
-using namespace std;
-#include <iostream>
-
-//int n_ratings, n_users, n_movies;
-//int n_ratings_20, n_users_20, n_ratings_27, n_users_27, n_ratings_l, n_users_l, n_movies_27;
-
-int n_ratings_27 = 27753444;
-int n_users_27 = 283228;
-// n_movies_27 = 53889;
-
-int n_ratings_20 = 20000263;
-int n_users_20 = 138493;
-
-int n_ratings_l = 49;
-int n_users_l = 8;
-
-// n_ratings = n_ratings_20;
-// n_users = n_users_20;
-
-int n_ratings = n_ratings_27;
-int n_users = n_users_27;
-// n_movies = n_movies_27;
-
-// n_ratings = n_ratings_l;
-// n_users = n_users_l;
-
+int map_n_ratings, map_n_users, map_n_movies;
+int n_ratings, n_users, n_movies;
+int n_ratings_20, n_users_20, n_ratings_27, n_users_27, n_ratings_l, n_users_l, n_movies_27;
 int max_users = 300000;
 int max_movies = 200000;
 
-
-// n_ratings
-// n_of_users("../databases/libro/ratings.csv", n_ratings, n_users, true);
-// cout<<n_ratings<<" "<<n_users<<endl;
+map<int, map<int, float>* > map_users;
+map<int, map<int, float>* > map_items;
 
 float* values;
 int *row_ind, * col_ind;
@@ -61,7 +24,6 @@ float* d_values;
 int *d_row_ind, * d_col_ind;
 int * d_ind_users, * d_row_size;
 
-
 float* item_values;
 int *item_row_ind, * item_col_ind;
 int * ind_items, *item_row_size;
@@ -70,209 +32,114 @@ float* d_item_values;
 int *d_item_row_ind, * d_item_col_ind;
 int * d_ind_items, *d_item_row_size;
 
-struct HelloHandler : public Http::Handler {
 
-  HTTP_PROTOTYPE(HelloHandler)
-  void onRequest(const Http::Request& request , Http::ResponseWriter writer) override{
+// para coseno ajustado
+float *maxs, *mins, *averages;
 
-    if (request.resource() == "/" && request.method() == Http::Method::Get) {
-        Http::serveFile(writer, "static/index.html");
+
+
+
+void *print_message_function( void *ptr );
+
+void *get_map_users(void* ptr);
+void *get_map_items(void* ptr);
+
+void generate_user_arrays(){
+  delete(values); delete(row_ind); delete(col_ind); delete(ind_users); delete(row_size);
+  values = new float[n_ratings]; //ratings
+  row_ind = new int[n_ratings]; //id_users
+  col_ind = new int[n_ratings]; //id_items
+  ind_users = new int[max_users]; // indice users
+  row_size = new int[max_users]; //indice items
+
+  int i = 0;
+  auto it = map_users.begin();
+  while (it != map_users.end()) {
+    auto ite = it->second->begin();
+    ind_users[it->first] = i;
+    row_size[it->first] = it->second->size();
+    while (ite != it->second->end()) {
+      values[i] = ite->second;
+      row_ind[i] = it->first;
+      col_ind[i] = ite->first;
+      i++;
+      ite++;
     }
-    else{
-
-        if (request.resource() == "/knn" && request.method() == Http::Method::Post){
-                
-                //Copia Contenido a json
-                int n = request.body().length();
-                char json[n + 1]; 
-                strcpy(json, request.body().c_str()); 
-                            
-                cout << "->" <<json << endl;
-                Document d;
-                d.Parse(json);
-
-                assert(d.IsObject());
-                // cout << "Es Documento" << endl;
-
-                // int iduser = 
-                // int distancia = 
-
-                vector<pair<int, float> > knns;
-                float * distances; 
-                bool * b_dists;
-
-                int id_user = d["iduser"].GetInt();
-                int measure = d["distancia"].GetInt();
-                int k = d["k"].GetInt();
-                // float umbral = d["umbral"].GetFloat();
-
-                reloj r;
-                r.start();
-                distances_one2all(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure);
-                if(measure == PEARSON){
-                  cout << " PEARSON " << measure <<endl;
-                  cout << " PEARSON " << measure <<endl;
-
-                  knns = knn_greater_cuda(distances, b_dists, max_users, id_user, k);
-                }
-                else{
-                  cout << " OTROS " << measure <<endl;
-                  knns = knn_less_cuda(distances, b_dists, max_users, id_user, k);
-                }
-                r.stop();
-                cout<<"Tiempo total: "<<r.time()<<"ms"<<endl;
-                string salida = "{";
-                salida += " \"user\": [";
-                for (size_t i = 0; i < k; i++) {
-                  cout<<knns[i].first<<" "<<knns[i].second<<endl;
-                  salida += "{ \"user\": " + to_string(knns[i].first) + ",";
-                  salida += "\"distancia\": " + to_string(knns[i].second) + "}" ; 
-                  if (i!=k-1) salida += ",";
-                }
-                salida += "],\"recomendacion\": ["; 
-                
-                vector<int> contador;
-                vector<int> ids_movies;
-                vector<float> movies_ratings;
-                k_recomendaciones_propuesta(contador, ids_movies, movies_ratings, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure, k);
-                cout << "Recomendado " << endl;
-                for(int mi = 0; mi<ids_movies.size();++mi ){
-                    salida += "{\"idItem\":" + to_string(ids_movies.at(mi) ) + ",";
-                    salida += " \"rating\": " + to_string(movies_ratings.at(mi) ) + "}";
-                    // salida += " \"nombre\": \"" + rec.first->nombre + " \" } ";
-                    if (mi!=k-1) salida += ",";
-                }
-                salida+= "]";
-                salida += ",\"time\":  " +  to_string(r.time()) ; 
-                salida += "}";
-
-                
-                
-      
-                // //KNN PROCEDURE
-                // auto start = chrono::steady_clock::now();
-                // auto u = g.findUser(iduser); //prueba
-                // k_vec k_vecinos_cercanos; //k vecinos
-                // // list<pair<int,float> > recomendacion;//
-                // map<NodoItem*,pair<float,int>> recomendacion;
-                
-                // string salida = "{";
-                // if(u) {
-                //     salida += " \"user\": [";
-                //     u->knn(k,distancia,k_vecinos_cercanos);
-                    
-                //     int c_vecinos = 0 ; 
-                //     for(auto & vecino : k_vecinos_cercanos){
-                //         salida += "{ \"user\": " + to_string(vecino.second->id) + ",";
-                //         salida += "\"distancia\": " + to_string(vecino.first) + "}" ; 
-                //         if (c_vecinos < k_vecinos_cercanos.size()-1 ) salida += ",";
-                //         c_vecinos ++;
-                //     }
-
-                //     c_vecinos = 0;
-                //     salida += "],\"recomendacion\": ["; 
-                //     u->recomendacion(k_vecinos_cercanos,recomendacion,umbral);
-                //     for(auto & rec : recomendacion){
-                //         salida += "{\"idItem\":" + to_string(rec.first->id ) + ",";
-                //         salida += " \"rating\": " + to_string(rec.second.first/rec.second.second) + ",";
-                //         salida += " \"nombre\": \"" + rec.first->nombre + " \" } ";
-                //         if (c_vecinos < recomendacion.size() -1 ) salida += ",";
-                //         c_vecinos ++;
-                //     }
-                //     salida+= "]";
-                //     //salida += to_string(recomendacion)
-
-                // }
-                // else {
-                //     cout << "no user" << endl;
-                //     salida+=" \"error\": \"No se encontro el usuario\" ";
-                // }
-
-                // auto fin = chrono::steady_clock::now();
-                // //cout <<"KNN: " <<chrono::duration_cast<chrono::milliseconds>(fin-start).count()<<endl;
-                // salida += ",\"time\":  " +  to_string(chrono::duration_cast<chrono::milliseconds>(fin-start).count()) ; 
-                // salida += "}";
-                // //END KNN procedure 
-
-                cout << "Salida: "<< salida << endl;        
-                // string salida("{}");
-                writer.send(Http::Code::Ok, salida, MIME(Application, Json));
-        }
-        if (request.resource() == "/item" && request.method() == Http::Method::Post){
-            //Copia Contenido a json
-            int n = request.body().length();
-            char json[n + 1]; 
-            strcpy(json, request.body().c_str()); 
-                        
-            cout << "->" <<json << endl;
-            Document d;
-            d.Parse(json);
-
-            assert(d.IsObject());
-            cout << "Es Documento" << endl;
-
-            // int iduser = d["iduser"].GetInt();
-            // int distancia = d["distancia"].GetInt();
-            // int k = d["k"].GetInt();
-            // int item_b = d["item"].GetInt();
-
-            // auto start = chrono::steady_clock::now();
-            // auto u = g.findUser(iduser); // Encuentra User
-            // auto i = g.findItem(item_b); // Encuentra User
-            // k_vec k_vecinos_cercanos; //k vecinos
-
-            // string salida = "{";
-            //     if(u && i) {
-            //         u->knn_restricto(k,distancia,i,k_vecinos_cercanos);
-            //         k_vec_rest kvecinosrest;
-            //         float rating = u->get_influencias(k_vecinos_cercanos,i,kvecinosrest);
-            //         if(rating != -1){
-
-            //             // list < tuple < user,  distancia , influencia , rating,  rating*influencia > 
-            //             salida += "\"rating\":" + to_string(rating) + ",";
-            //             salida += " \"user\": [";
-            //             int c_vecinos = 0 ; 
-            //             for(auto & vecino : kvecinosrest){
-            //                 salida += "{ \"user\": " + to_string(get<0>(vecino)->id) + ",";
-            //                 salida += "\"distancia\": " + to_string(get<1>(vecino)) + "," ; 
-            //                 salida += "\"influencia\": " + to_string(get<2>(vecino)) + "," ; 
-            //                 salida += "\"rating\": " + to_string(get<3>(vecino)) + "," ; 
-            //                 salida += "\"ratingxinfluencia\": " + to_string(get<4>(vecino)) + "}" ; 
-            //                 if (c_vecinos < k_vecinos_cercanos.size()-1 ) salida += ",";
-            //                 c_vecinos ++;
-            //             }
-
-            //             c_vecinos = 0;
-            //             salida += "]";
-            //         }
-            //         else{
-            //             salida+=" \"error\": \"El usuario ya vio la pelicula\" ";
-            //         } 
-
-            //     }
-            //     else {
-            //         cout << "no user o Item" << endl;
-            //         salida+=" \"error\": \"No se encontro el usuario o Item\" ";
-            //     }
-
-            //     auto fin = chrono::steady_clock::now();
-            //     //cout <<"KNN: " <<chrono::duration_cast<chrono::milliseconds>(fin-start).count()<<endl;
-            //     salida += ",\"time\":  " +  to_string(chrono::duration_cast<chrono::milliseconds>(fin-start).count()) ; 
-            //     salida += "}";
-            //     //END KNN procedure 
-
-            //     cout << "Salida: "<< salida << endl;     
-                string salida = "{}";
-                writer.send(Http::Code::Ok, salida, MIME(Application, Json));
-
-        }
-    }
-
+    it++;
   }
-};
+
+}
+
+void generate_item_arrays(){
+  delete(item_values); delete(item_row_ind); delete(item_col_ind); delete(ind_items); delete(item_row_size);
+  item_values = new float[n_ratings]; //ratings
+  item_row_ind = new int[n_ratings]; //id_users
+  item_col_ind = new int[n_ratings]; //id_items
+  ind_items = new int[max_movies]; // indice users
+  item_row_size = new int[max_movies]; //indice items
+
+  int i = 0;
+  auto it = map_items.begin();
+  while (it != map_items.end()) {
+    auto ite = it->second->begin();
+    ind_items[it->first] = i;
+    item_row_size[it->first] = it->second->size();
+    while (ite != it->second->end()) {
+      item_values[i] = ite->second;
+      item_row_ind[i] = it->first;
+      item_col_ind[i] = ite->first;
+      i++;
+      ite++;
+    }
+    it++;
+  }
+
+}
+
+
 
 int main(int argc, char const *argv[]) {
-  
+  // float* as = new float[4];
+  // for (size_t i = 0; i < 4; i++) {
+  //   if(as[i] == 0)
+  //     cout<<as[i]<<endl;
+  // }
+
+  pthread_t thread1, thread2;
+  const char *message1 = "Thread 1";
+  int  iret1, iret2;
+
+
+
+
+
+  n_ratings_27 = 27753444;
+  n_users_27 = 283228;
+  // n_movies_27 = 53889;
+
+  n_ratings_20 = 20000263;
+  n_users_20 = 138493;
+
+  n_ratings_l = 49;
+  n_users_l = 8;
+
+  // n_ratings = n_ratings_20;
+  // n_users = n_users_20;
+
+  n_ratings = n_ratings_27;
+  n_users = n_users_27;
+  // n_movies = n_movies_27;
+
+  // n_ratings = n_ratings_l;
+  // n_users = n_users_l;
+
+
+
+
+  // n_ratings
+  // n_of_users("../databases/libro/ratings.csv", n_ratings, n_users, true);
+  // cout<<n_ratings<<" "<<n_users<<endl;
+
 
   d_values = cuda_array<float>(n_ratings);
   d_row_ind = cuda_array<int>(n_ratings);
@@ -288,7 +155,7 @@ int main(int argc, char const *argv[]) {
 
 
 
-  map<int, string> movies_names;
+
 
   // read_ML_movies("../databases/ml-20m/movies.csv", movies_names, true);
   // read_ML_ratings("../databases/ml-20m/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
@@ -296,11 +163,48 @@ int main(int argc, char const *argv[]) {
   // read_ML_movies("../../collaborative_filtering/databases/ml-latest/movies.csv", movies_names, true);
   // read_ML_ratings("../collaborative_filtering/databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
 
-  read_ML_ratings("dataset/ratings27.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
-  read_ML_ratings_items("dataset/ratings27.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
-
+  reloj a;
+  a.start();
+  read_ML_ratings("../databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
+  read_ML_ratings_items("../databases/ml-latest/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
+  a.stop();
+  cout<<"Tiempo de carga de bd: "<<a.time()<<"ms"<<endl;
   // read_ML_ratings("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "l");
   // read_ML_ratings_items("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "l");
+
+
+  average_per_user(values, ind_users, row_size, maxs, mins, averages, max_users);
+
+
+
+
+
+
+
+  iret1 = pthread_create( &thread1, NULL, get_map_users, (void*) message1);
+  if(iret1){
+    fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
+    exit(EXIT_FAILURE);
+  }
+  printf("pthread_create() for thread 1 returns: %d\n",iret1);
+
+  iret2 = pthread_create( &thread2, NULL, get_map_items, (void*) message1);
+  if(iret2){
+    fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
+    exit(EXIT_FAILURE);
+  }
+  printf("pthread_create() for thread 1 returns: %d\n",iret2);
+
+
+
+
+
+
+
+
+
+  // pthread_join( thread1, NULL);
+
 
 
   // for (size_t i = 0; i < 100; i++) {
@@ -319,24 +223,169 @@ int main(int argc, char const *argv[]) {
   cuda_H2D<int>(item_row_size, d_item_row_size, max_movies);
 
 
-  
-  
-  // float* r1 = float_pointer(values, ind_users, 8);
-  // int* c1 = int_pointer(col_ind, ind_users, 8);
-  // for (size_t i = 0; i < row_size[8]; i++) {
-  //   cout<<c1[i]<<" "<<r1[i]<<endl;
+  // float *distances;
+  // bool * b_dists;
+  // vector<pair<int, float> > knns;
+  // int id_user = 16006;
+  // // int id_user = 30503;
+  // // int id_user = 283228;
+  // int measure = MANHATTAN;
+  // int k = 10;
+  // reloj r;
+  // r.start();
+  // cout<<"asda"<<endl;
+  // distances_one2all(distances, b_dists, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure);
+  // if(measure == PEARSON){
+  //   // knns = knn_greater_map(distances, b_dists, max_users, id_user, k);
+  //   knns = knn_greater_cuda(distances, b_dists, max_users, id_user, k);
   // }
-  
-  Pistache::Address addr(Pistache::Ipv4::any(), Pistache::Port(9081));
-  auto opts = Pistache::Http::Endpoint::options()
-      .threads(1);
+  // else{
+  //   knns = knn_less_cuda(distances, b_dists, max_users, id_user, k);
+  //   // knns = knn_less_map(distances, b_dists, max_users, id_user, k);
+  // }
+  // r.stop();
+  // cout<<"Tiempo total: "<<r.time()<<"ms"<<endl;
+  // for (size_t i = 0; i < k; i++) {
+  //   cout<<knns[i].first<<" "<<knns[i].second<<endl;
+  // }
+  // vector<int> contador;
+  // vector<int> ids_movies;
+  // vector<float> movies_ratings;
+  //
+  // k_recomendaciones_propuesta(contador, ids_movies, movies_ratings, values, row_ind, col_ind, ind_users, row_size, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, n_users, max_users, id_user, measure, k);
+  //
+  // for (size_t i = 0; i < k; i++) {
+  //   cout<<ids_movies[i]<<" "<<movies_ratings[i]<<" "<<contador[i]<<endl;
+  // }
 
-  Http::Endpoint server(addr);
-  server.init(opts);
-  server.setHandler(Http::make_handler<HelloHandler>());
-  server.serve();
 
-  server.shutdown();
+  float* desviaciones;
+  int* cardinalidad;
+  bool* b_dists;
+  int id_movie = 1;
+
+  float* cosenos;
+  // desviaciones_one2all( desviaciones, cardinalidad, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie);
+  coseno_ajustado_one2all(cosenos, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie, maxs, mins, averages);
+
+
+
+
+
+
+
+
+
+
+  cout<<endl<<endl<<endl;
+
+  // float* r1 = float_pointer(values, ind_users, 1);
+  // int* c1 = int_pointer(col_ind, ind_users, 1);
+  // for (size_t i = 0; i < row_size[1]; i++) {
+  //   cout<<c1[i]<<" -> "<<r1[i]<<endl;
+  // }
+
+  float* r1 = float_pointer(item_values, ind_items, 1);
+  int* c1 = int_pointer(item_col_ind, ind_items, 1);
+  for (size_t i = 0; i < 10; i++) {
+    cout<<c1[i]<<" -> "<<r1[i]<<endl;
+  }
+
+
+  cout<<"------------------"<<endl;
+
+  pthread_join( thread1, NULL);
+  pthread_join( thread2, NULL);
+  cout<<"Size map: "<<map_users.size()<<" "<<map_items.size()<<endl;
+
+  // auto it = map_users.find(1);
+  // if(it == map_users.end())
+  //   cout <<"not found!!!"<<endl;
+  // else
+  // for (auto ite = it->second->begin(); ite != it->second->end(); ite++) {
+  //   cout<<ite->first<<" -> "<<ite->second<<endl;
+  // }
+
+  auto it = map_items.find(1);
+  int k1 = 0;
+  if(it == map_items.end())
+    cout <<"not found!!!"<<endl;
+  else
+  for (auto ite = it->second->begin(); (k1 < 10) && ite != it->second->end(); ite++) {
+    cout<<ite->first<<" -> "<<ite->second<<endl;
+    k1++;
+  }
+
+  cout<<"------------------"<<endl;
+
+
+  reloj p;
+  p.start();
+  generate_user_arrays();
+  generate_item_arrays();
+  p.stop();
+  cout<<"Tiempo de generacion de user arrays"<<p.time()<<"ms"<<endl;
+
+
+
+  r1 = float_pointer(item_values, ind_items, 1);
+  c1 = int_pointer(item_col_ind, ind_items, 1);
+  for (size_t i = 0; i < 10; i++) {
+    cout<<c1[i]<<" -> "<<r1[i]<<endl;
+  }
+
 
   return 0;
+}
+
+void *get_map_users(void* ptr){
+  cout<<"Creando map users"<<endl;
+  map_n_ratings = n_ratings;
+  map_n_users = n_users;
+  map_n_movies = n_movies;
+  for (size_t i = 0; i < max_users; i++) {
+    if(i % 10000 == 0){
+      // cout<<i<<endl;
+    }
+    if(row_size[i] != 0){
+      if (i == 1)
+        cout<<"si esta 1"<<endl;
+      float* r1 = float_pointer(values, ind_users, i);
+      int* c1 = int_pointer(col_ind, ind_users, i);
+      for (size_t j = 0; j < row_size[i]; j++) {
+        auto it = map_users.find(i);
+        if(it == map_users.end()){
+          map<int, float> * mapa = new map<int, float>();
+          map_users[i] = mapa;
+        }
+        (*(map_users[i]))[c1[j]] = r1[j];
+      }
+    }
+  }
+  cout<<"Fin map users"<<endl;
+}
+
+void *get_map_items(void* ptr){
+  map_n_ratings = n_ratings;
+  map_n_users = n_users;
+  map_n_movies = n_movies;
+  cout<<"Creando map items"<<endl;
+  for (size_t i = 0; i < max_users; i++) {
+    if(i % 10000 == 0){
+      // cout<<i<<endl;
+    }
+    if(row_size[i] != 0){
+      float* r1 = float_pointer(values, ind_users, i);
+      int* c1 = int_pointer(col_ind, ind_users, i);
+      for (size_t j = 0; j < row_size[i]; j++) {
+        auto it = map_items.find(c1[j]);
+        if(it == map_items.end()){
+          map<int, float> * mapa = new map<int, float>();
+          map_items[c1[j]] = mapa;
+        }
+        (*(map_items[c1[j]]))[i] = r1[j];
+      }
+    }
+  }
+  cout<<"Fin map items"<<endl;
 }

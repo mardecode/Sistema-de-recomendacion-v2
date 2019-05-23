@@ -277,6 +277,30 @@ void read_ML_ratings_items(string path,
 
 }
 
+void average_per_user(float *&values, int *&ind_users, int *&row_size, float*&maxs, float*&mins, float*&averages, int max_users){
+  cout<<"hallando mins, maxs y promedios\n";
+  averages = new float[max_users];
+  maxs = new float[max_users];
+  mins = new float[max_users];
+  float sum;
+  float max_,min_;
+  for(size_t i=0; i<max_users; i++){
+    max_ = 0; min_ = 5;
+    sum = 0;
+    if(row_size[i] != 0){
+      for(size_t j=ind_users[i];j < ind_users[i]+row_size[i];j++){
+        sum += values[j];
+        if(max_< values[j]) max_= values[j];
+        if(min_> values[j]) min_ = values[j];
+      }
+      averages[i]=sum/row_size[i];
+      maxs[i] = max_;
+      mins[i] = min_;
+    }
+  }
+
+}
+
 void read_ML_movies(string path, map<int, string>& movie_names, bool header){
   ifstream infile(path);
   string line;
