@@ -3,6 +3,7 @@
 #include "cud_defs.h"
 #include "distances.h"
 #include "knn.h"
+#include "writer.h"
 #include "recomender.h"
 #include <pthread.h>
 
@@ -168,8 +169,8 @@ int main(int argc, char const *argv[]) {
 
   reloj a;
   a.start();
-  read_ML_ratings("../databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
-  read_ML_ratings_items("../databases/ml-latest/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
+  read_ML_ratings("dataset/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
+  read_ML_ratings_items("dataset/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
   a.stop();
   cout<<"Tiempo de carga de bd: "<<a.time()<<"ms"<<endl;
   // read_ML_ratings("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "l");
@@ -262,98 +263,78 @@ int main(int argc, char const *argv[]) {
   // }
 
 
-  float* desviaciones;
-  int* cardinalidad;
-  bool* b_dists;
-  int id_movie = 1;
+  
+  cout << "Comienza Escritura" << endl;
+  create_matrix_desviaciones(n_ratings,max_movies,d_item_values,d_item_row_ind,d_item_col_ind,d_ind_items,d_item_row_size,row_size);
 
-  float* cosenos;
-  reloj j2;
-  j2.start();
-  // desviaciones_one2all( desviaciones, cardinalidad, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie);
-  // coseno_ajustado_one2all(cosenos, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie, maxs, mins, averages);
-  // adjusted_cosine_one2all(cosenos, id_movie, n_ratings,max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, d_averages);
+
+
+  // cout<<endl<<endl<<endl;
+
+  // // float* r1 = float_pointer(values, ind_users, 1);
+  // // int* c1 = int_pointer(col_ind, ind_users, 1);
+  // // for (size_t i = 0; i < row_size[1]; i++) {
+  // //   cout<<c1[i]<<" -> "<<r1[i]<<endl;
+  // // }
+
+  // float* r1 = float_pointer(item_values, ind_items, 1);
+  // int* c1 = int_pointer(item_col_ind, ind_items, 1);
   // for (size_t i = 0; i < 10; i++) {
-  //   if(row_size[i] != 0)
-  //     cout<<cosenos[i]<<endl;
-  // }
-  desviacion_one2all(desviaciones, cardinalidad, id_movie, n_ratings, max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size);
-  for (size_t i = 0; i < 10; i++) {
-    if(row_size[i] != 0)
-      cout<<desviaciones[i]<<"  ->  "<<cardinalidad[i]<<endl;
-  }
-  j2.stop();
-  cout<<"tiempo de uno a todos items: "<<j2.time()<<"ms"<<endl;
-
-
-
-
-
-
-
-
-
-  cout<<endl<<endl<<endl;
-
-  // float* r1 = float_pointer(values, ind_users, 1);
-  // int* c1 = int_pointer(col_ind, ind_users, 1);
-  // for (size_t i = 0; i < row_size[1]; i++) {
   //   cout<<c1[i]<<" -> "<<r1[i]<<endl;
   // }
 
-  float* r1 = float_pointer(item_values, ind_items, 1);
-  int* c1 = int_pointer(item_col_ind, ind_items, 1);
-  for (size_t i = 0; i < 10; i++) {
-    cout<<c1[i]<<" -> "<<r1[i]<<endl;
-  }
 
+  // cout<<"------------------"<<endl;
 
-  cout<<"------------------"<<endl;
+  // pthread_join( thread1, NULL);
+  // pthread_join( thread2, NULL);
+  // cout<<"Size map: "<<map_users.size()<<" "<<map_items.size()<<endl;
 
-  pthread_join( thread1, NULL);
-  pthread_join( thread2, NULL);
-  cout<<"Size map: "<<map_users.size()<<" "<<map_items.size()<<endl;
+  // // auto it = map_users.find(1);
+  // // if(it == map_users.end())
+  // //   cout <<"not found!!!"<<endl;
+  // // else
+  // // for (auto ite = it->second->begin(); ite != it->second->end(); ite++) {
+  // //   cout<<ite->first<<" -> "<<ite->second<<endl;
+  // // }
 
-  // auto it = map_users.find(1);
-  // if(it == map_users.end())
+  // auto it = map_items.find(1);
+  // int k1 = 0;
+  // if(it == map_items.end())
   //   cout <<"not found!!!"<<endl;
   // else
-  // for (auto ite = it->second->begin(); ite != it->second->end(); ite++) {
+  // for (auto ite = it->second->begin(); (k1 < 10) && ite != it->second->end(); ite++) {
   //   cout<<ite->first<<" -> "<<ite->second<<endl;
+  //   k1++;
   // }
 
-  auto it = map_items.find(1);
-  int k1 = 0;
-  if(it == map_items.end())
-    cout <<"not found!!!"<<endl;
-  else
-  for (auto ite = it->second->begin(); (k1 < 10) && ite != it->second->end(); ite++) {
-    cout<<ite->first<<" -> "<<ite->second<<endl;
-    k1++;
-  }
-
-  cout<<"------------------"<<endl;
+  // cout<<"------------------"<<endl;
 
 
-  reloj p;
-  p.start();
-  generate_user_arrays();
-  generate_item_arrays();
-  p.stop();
-  cout<<"Tiempo de generacion de user arrays"<<p.time()<<"ms"<<endl;
+  // reloj p;
+  // p.start();
+  // generate_user_arrays();
+  // generate_item_arrays();
+  // p.stop();
+  // cout<<"Tiempo de generacion de user arrays"<<p.time()<<"ms"<<endl;
 
 
 
-  r1 = float_pointer(item_values, ind_items, 1);
-  c1 = int_pointer(item_col_ind, ind_items, 1);
-  for (size_t i = 0; i < 10; i++) {
-    cout<<c1[i]<<" -> "<<r1[i]<<endl;
-  }
+  // r1 = float_pointer(item_values, ind_items, 1);
+  // c1 = int_pointer(item_col_ind, ind_items, 1);
+  // for (size_t i = 0; i < 10; i++) {
+  //   cout<<c1[i]<<" -> "<<r1[i]<<endl;
+  // }
+
+
 
 
   return 0;
 }
 
+
+
+/// FIN MAIN // 
 void *get_map_users(void* ptr){
   cout<<"Creando map users"<<endl;
   map_n_ratings = n_ratings;
