@@ -169,51 +169,22 @@ int main(int argc, char const *argv[]) {
 
   reloj a;
   a.start();
-  read_ML_ratings("dataset/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
-  read_ML_ratings_items("dataset/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
+  read_ML_ratings("dataset/ratings27.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
+  read_ML_ratings_items("dataset/ratings27.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
   a.stop();
   cout<<"Tiempo de carga de bd: "<<a.time()<<"ms"<<endl;
   // read_ML_ratings("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "l");
   // read_ML_ratings_items("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "l");
 
-
   average_per_user(values, ind_users, row_size, maxs, mins, averages, max_users);
   cuda_H2D<float>(averages, d_averages, max_users);
-
-
-
-
-
-
-  iret1 = pthread_create( &thread1, NULL, get_map_users, (void*) message1);
-  if(iret1){
-    fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-    exit(EXIT_FAILURE);
-  }
-  printf("pthread_create() for thread 1 returns: %d\n",iret1);
-
-  iret2 = pthread_create( &thread2, NULL, get_map_items, (void*) message1);
-  if(iret2){
-    fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
-    exit(EXIT_FAILURE);
-  }
-  printf("pthread_create() for thread 1 returns: %d\n",iret2);
-
-
-
-
-
-
-
 
 
   // pthread_join( thread1, NULL);
 
 
 
-  // for (size_t i = 0; i < 100; i++) {
-  //   cout<<item_row_size[i]<<endl;
-  // }
+  
   cuda_H2D<float>(values, d_values, n_ratings);
   cuda_H2D<int>(row_ind, d_row_ind, n_ratings);
   cuda_H2D<int>(col_ind, d_col_ind, n_ratings);
@@ -261,12 +232,11 @@ int main(int argc, char const *argv[]) {
   // for (size_t i = 0; i < k; i++) {
   //   cout<<ids_movies[i]<<" "<<movies_ratings[i]<<" "<<contador[i]<<endl;
   // }
+ 
 
-
-  
   cout << "Comienza Escritura" << endl;
-  create_matrix_desviaciones(n_ratings,max_movies,d_item_values,d_item_row_ind,d_item_col_ind,d_ind_items,d_item_row_size,row_size);
-
+  create_matrix_desviaciones(n_ratings,max_movies,d_item_values,d_item_row_ind,d_item_col_ind,d_ind_items,d_item_row_size,item_row_size);
+  cout << "Fin Escritura" << endl;
 
 
   // cout<<endl<<endl<<endl;

@@ -112,6 +112,9 @@ void desviacion_one2all(float*& distances, int*& cardinalidad, int id_movie, int
   CHECK(cudaDeviceSynchronize());
   cuda_D2H(d_distances, distances, max_movies);
   cuda_D2H(d_cardinalidad, cardinalidad, max_movies);
+  
+  cudaFree(d_distances);
+  cudaFree(d_cardinalidad);
 }
 
 
