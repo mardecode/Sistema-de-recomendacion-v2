@@ -52,9 +52,9 @@ __device__ float d_cosine2(float* r1, int* col1, int s1, float* r2, int* col2, i
 
   while (it1 < s1 && it2 < s2) {
     if(col1[it1] == col2[it2]){
-      sum_R += (r1[it1] - prom[col1[it1] - 1]) * (r2[it2] - prom[col2[it2] - 1]);
-      sum_Rui2+= (r1[it1] - prom[col1[it1] - 1]) * (r1[it1] - prom[col1[it1] - 1]);
-      sum_Ruj2+= (r2[it2] - prom[col2[it2] - 1]) * (r2[it2] - prom[col2[it2] - 1]);
+      sum_R += (r1[it1] - prom[col1[it1]]) * (r2[it2] - prom[col2[it2]]);
+      sum_Rui2+= (r1[it1] - prom[col1[it1]]) * (r1[it1] - prom[col1[it1]]);
+      sum_Ruj2+= (r2[it2] - prom[col2[it2]]) * (r2[it2] - prom[col2[it2]]);
       it1++; it2++;
       // n++;
     }else if(col1[it1] < col2[it2]){

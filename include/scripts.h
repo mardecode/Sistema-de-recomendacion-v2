@@ -11,6 +11,7 @@
 #include <fstream>
 
 #include "structures.h"
+#include  "distances.h"
 
 using namespace std;
 
@@ -105,6 +106,8 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
   ind_users = new int[max_users]; // indice users
   row_size = new int[max_users]; //indice items
 
+
+
   if(fexists(path_b + "values_" + version) && fexists(path_b + "row_ind_" + version) && fexists(path_b + "col_ind_" + version) && fexists(path_b + "ind_users_" + version) && fexists(path_b + "row_size_" + version)){
     cout<<"Reading values"<<endl;
     read_array<float>(values, n_ratings, path_b + "values_" + version);
@@ -118,6 +121,12 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
     read_array<int>(row_size, max_users, path_b + "row_size_" + version);
   }
   else{
+    initialize_arr<float>(values, n_ratings, 0);
+    initialize_arr<int>(row_ind, n_ratings, 0);
+    initialize_arr<int>(col_ind, n_ratings, 0);
+    initialize_arr<int>(ind_users, max_users, 0);
+    initialize_arr<int>(row_size, max_users, 0);
+
     ifstream infile(path);
     string line;
     if(header) getline(infile, line);
@@ -176,7 +185,7 @@ void read_ML_ratings(string path, int n_ratings, int n_users, bool header, float
 void read_ML_ratings_items(string path,
         int n_ratings,
         int n_users,
-        int n_movies,
+        int max_movies,
 
         bool header,
         float*& item_values,
@@ -193,8 +202,9 @@ void read_ML_ratings_items(string path,
   item_values = new float[n_ratings];
   item_row_ind = new int[n_ratings];
   item_col_ind = new int[n_ratings];
-  ind_items = new int[n_movies];
-  item_row_size = new int[n_movies];
+  ind_items = new int[max_movies];
+  item_row_size = new int[max_movies];
+
   // pos_movies = new int[n_ids_movies];
 
   if(fexists(path_b + "item_values_" + version) &&
@@ -208,13 +218,20 @@ void read_ML_ratings_items(string path,
     cout<<"Reading item_col_ind"<<endl;
     read_array<int>(item_col_ind, n_ratings, path_b + "item_col_ind_" + version);
     cout<<"Reading ind_items"<<endl;
-    read_array<int>(ind_items, n_movies, path_b + "ind_item_" + version);
+    read_array<int>(ind_items, max_movies, path_b + "ind_item_" + version);
     cout<<"Reading item_row_size"<<endl;
-    read_array<int>(item_row_size, n_movies, path_b + "item_row_size_" + version);
+    read_array<int>(item_row_size, max_movies, path_b + "item_row_size_" + version);
     // cout<<"Reading pos_movies"<<endl;
     // read_array<int>(pos_movies, n_ids_movies, path_b + "pos_movies_" + version);
   }else{
   cout<<"say hi"<<endl;
+
+    initialize_arr<float>(item_values, n_ratings, 0);
+    initialize_arr<int>(item_row_ind, n_ratings, 0);
+    initialize_arr<int>(item_col_ind, n_ratings, 0);
+    initialize_arr<int>(ind_items, max_movies, 0);
+    initialize_arr<int>(item_row_size, max_movies, 0);
+
     ifstream infile(path);
     string line;
     // int n_movies;
@@ -266,9 +283,9 @@ void read_ML_ratings_items(string path,
     cout<<"Writing item_col_ind"<<endl;
     write_array<int>(item_col_ind, n_ratings, path_b + "item_col_ind_" + version);
     cout<<"Writing ind_items"<<endl;
-    write_array<int>(ind_items, n_movies, path_b + "ind_item_" + version);
+    write_array<int>(ind_items, max_movies, path_b + "ind_item_" + version);
     cout<<"Writing item_row_size"<<endl;
-    write_array<int>(item_row_size, n_movies, path_b + "item_row_size_" + version);
+    write_array<int>(item_row_size, max_movies, path_b + "item_row_size_" + version);
     // cout<<"Writing pos_movies"<<endl;
     // write_array<int>(pos_movies, n_ids_movies, path_b + "pos_movies_" + version);
 
@@ -288,6 +305,8 @@ void average_per_user(float *&values, int *&ind_users, int *&row_size, float*&ma
     max_ = 0; min_ = 5;
     sum = 0;
     if(row_size[i] != 0){
+      cout<<i<<endl;
+      cout<<row_size[i]<<" "<<ind_users[i]<<endl;
       for(size_t j=ind_users[i];j < ind_users[i]+row_size[i];j++){
         sum += values[j];
         if(max_< values[j]) max_= values[j];
