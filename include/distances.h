@@ -16,151 +16,119 @@ void initialize_arr(T* arr, int n, T val){
 }
 
 
-
-
-__global__ void desviacion_x_user(float* d_values, int* d_ind_users, int* d_col_ind, float* d_desviaciones, int* d_cardinalidad, bool* d_b_dists, float val, int n_movies_x_user, int id_user){
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if(i < n_movies_x_user){
-    float* r1 = float_pointer(d_values, d_ind_users, id_user);
-    int* c1 = int_pointer(d_col_ind, d_ind_users, id_user);
-    d_desviaciones[c1[i]] += (val - r1[i]);
-    d_cardinalidad[c1[i]]++;
-    d_b_dists[c1[i]] = true;
-  }
-}
-
-__global__ void coseno_x_user(float* d_values, int* d_ind_users, int* d_col_ind, float* d_coseno_num, float* d_coseno_den1, float* d_coseno_den2, float* d_averages, bool* d_b_dists, float val, int n_movies_x_user, int id_user){
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if(i < n_movies_x_user){
-    float* r1 = float_pointer(d_values, d_ind_users, id_user);
-    int* c1 = int_pointer(d_col_ind, d_ind_users, id_user);
-    d_coseno_num[c1[i]] += (val - d_averages[id_user]) *  (r1[i] - d_averages[id_user]);
-    d_coseno_den1[c1[i]] += (val - d_averages[id_user]) *  (val - d_averages[id_user]);
-    d_coseno_den2[c1[i]] += (r1[i] - d_averages[id_user]) *  (r1[i] - d_averages[id_user]);
-    // d_cardinalidad[c1[i]]++;
-    // d_cosenos[c1[i]] =
-    d_b_dists[c1[i]] = true;
-  }
-}
-
-
-void desviaciones_one2all(float*& desviaciones, int*& cardinalidad,  bool*& b_dists, float* item_values, int* item_row_ind, int* item_col_ind, int* ind_items, int* item_row_size,float* values, int* row_ind, int* col_ind, int* ind_users, int* row_size, float* d_values, int* d_row_ind, int* d_col_ind, int* d_ind_users, int* d_row_size, int n_movies, int max_movies, int id_movie){
-  float block_size = 256;
-  dim3 block =  dim3(block_size, 1, 1);
-
-  b_dists = new bool[max_movies];
-  bool* d_b_dists = cuda_array<bool>(max_movies);
-  initialize_arr<bool>(b_dists, max_movies, false);
-  cuda_H2D<bool>(b_dists, d_b_dists, max_movies);
-
-  desviaciones = new float[max_movies];
-  float* d_desviaciones = cuda_array<float>(max_movies);
-  initialize_arr<float>(desviaciones, max_movies, 0);
-  cuda_H2D<float>(desviaciones, d_desviaciones, max_movies);
-
-  cardinalidad = new int[max_movies];
-  int* d_cardinalidad = cuda_array<int>(max_movies);
-  initialize_arr<int>(cardinalidad, max_movies, 0);
-  cuda_H2D<int>(cardinalidad, d_cardinalidad, max_movies);
-
-
-  float* ratings_movie = float_pointer(item_values, ind_items, id_movie);
-  int* ids_users = int_pointer(item_col_ind, ind_items, id_movie);
-  // for (size_t i = 0; i < row_size[id_user]; i++) {
-  //   cout<<item_row_size[ids_movies[i]]<<endl;
-  // }
-  for (size_t i = 0; i < item_row_size[id_movie]; i++) {
-    // cout<<"pelicula: "<<ids_movies[i]<<endl;
-    int n_movies_x_user = row_size[ids_users[i]];
-    // cout<< n_users_x_movie<<endl;
-
-    dim3 grid =  dim3(ceil(n_movies_x_user / block_size), 1);
-
-    desviacion_x_user<<<grid, block>>>(d_values, d_ind_users, d_col_ind, d_desviaciones, d_cardinalidad, d_b_dists, ratings_movie[i], n_movies_x_user, ids_users[i]);
-    CHECK(cudaDeviceSynchronize());
-  }
-
-  cout<<"aas"<<endl;
-  cuda_D2H(d_desviaciones, desviaciones, max_movies);
-  cuda_D2H(d_b_dists, b_dists, max_movies);
-  cuda_D2H(d_cardinalidad, cardinalidad, max_movies);
-
-  for (size_t i = 0; i < 10; i++) {
-    if(b_dists[i])
-      cout<<"i: "<< i<<" "<<desviaciones[i]<<" "<<cardinalidad[i]<<"  ->  "<<(desviaciones[i] / cardinalidad[i])<<endl;
-      // distances[i] = sqrt(distances[i]);
-  }
-
-}
-
-
-void coseno_ajustado_one2all(float*& cosenos,  bool*& b_dists, float* item_values, int* item_row_ind, int* item_col_ind, int* ind_items, int* item_row_size,float* values, int* row_ind, int* col_ind, int* ind_users, int* row_size, float* d_values, int* d_row_ind, int* d_col_ind, int* d_ind_users, int* d_row_size, int n_movies, int max_movies, int id_movie, float* maxs, float* mins, float* averages){
-  float block_size = 256;
-  dim3 block =  dim3(block_size, 1, 1);
-
-  b_dists = new bool[max_movies];
-  bool* d_b_dists = cuda_array<bool>(max_movies);
-  initialize_arr<bool>(b_dists, max_movies, false);
-  cuda_H2D<bool>(b_dists, d_b_dists, max_movies);
-
-  cosenos = new float[max_movies];
-  float* d_cosenos = cuda_array<float>(max_movies);
-  initialize_arr<float>(cosenos, max_movies, 0);
-  cuda_H2D<float>(cosenos, d_cosenos, max_movies);
-
-  float* coseno_num = new float[max_movies];
-  float* d_coseno_num = cuda_array<float>(max_movies);
-  initialize_arr<float>(coseno_num, max_movies, 0);
-  cuda_H2D<float>(coseno_num, d_coseno_num, max_movies);
-
-  float* coseno_den1 = new float[max_movies];
-  float* d_coseno_den1 = cuda_array<float>(max_movies);
-  initialize_arr<float>(coseno_den1, max_movies, 0);
-  cuda_H2D<float>(coseno_den1, d_coseno_den1, max_movies);
-
-  float* coseno_den2 = new float[max_movies];
-  float* d_coseno_den2 = cuda_array<float>(max_movies);
-  initialize_arr<float>(coseno_den2, max_movies, 0);
-  cuda_H2D<float>(coseno_den2, d_coseno_den2, max_movies);
-
-
-  float* d_averages = cuda_array<float>(max_movies);
-  cuda_H2D<float>(averages, d_averages, max_movies);
-
-
-
-  float* ratings_movie = float_pointer(item_values, ind_items, id_movie);
-  int* ids_users = int_pointer(item_col_ind, ind_items, id_movie);
-  // for (size_t i = 0; i < row_size[id_user]; i++) {
-  //   cout<<item_row_size[ids_movies[i]]<<endl;
-  // }
-  for (size_t i = 0; i < item_row_size[id_movie]; i++) {
-    // cout<<"pelicula: "<<ids_movies[i]<<endl;
-    int n_movies_x_user = row_size[ids_users[i]];
-    // cout<< n_users_x_movie<<endl;
-
-    dim3 grid =  dim3(ceil(n_movies_x_user / block_size), 1);
-
-    coseno_x_user<<<grid, block>>>(d_values, d_ind_users, d_col_ind, d_coseno_num, d_coseno_den1, d_coseno_den2, d_averages, d_b_dists, ratings_movie[i], n_movies_x_user, ids_users[i]);
-    CHECK(cudaDeviceSynchronize());
-  }
-
-  cout<<"aas"<<endl;
-  cuda_D2H(d_coseno_num, coseno_num, max_movies);
-  cuda_D2H(d_coseno_den1, coseno_den1, max_movies);
-  cuda_D2H(d_coseno_den2, coseno_den2, max_movies);
-  cuda_D2H(d_b_dists, b_dists, max_movies);
-
-  for (size_t i = 0; i < 10; i++) {
-    if(b_dists[i]){
-      cout<<"i: "<< i<<" "<<coseno_num[i] / (sqrt(coseno_den1[i]) * sqrt(coseno_den2[i]))<<" "<<"  ->  "<<endl;
-      // distances[i] = sqrt(distances[i]);
-
+__device__ void d_desviacion(float* r1, int* col1, int s1, float* r2, int* col2, int s2, int& cardinalidad, float& desviacion){
+  float sum = 0;
+  cardinalidad = 0;
+  int it1, it2;
+  it1 = 0; it2 = 0;
+  while (it1 < s1 && it2 < s2){
+    if(col1[it1] == col2[it2]){
+      sum += (r1[it1] - r2[it2]);
+      cardinalidad++;
+      it1++; it2++;
+      // n++;
+    }else if(col1[it1] < col2[it2]){
+      it1++;
+    }else{
+      it2++;
     }
   }
-  cout<<"fin"<<endl;
+
+  if(cardinalidad == 0){
+    desviacion = 0;
+  }
+
+  desviacion = sum / cardinalidad;
 
 }
+__device__ float d_cosine2(float* r1, int* col1, int s1, float* r2, int* col2, int s2, float* prom){
+  float sum_Rui2 = 0;
+  float sum_Ruj2 = 0;
+  float sum_R = 0;
+
+  int it1 = 0;
+  int it2 = 0;
+  int n = 0;
+
+  while (it1 < s1 && it2 < s2) {
+    if(col1[it1] == col2[it2]){
+      sum_R += (r1[it1] - prom[col1[it1] - 1]) * (r2[it2] - prom[col2[it2] - 1]);
+      sum_Rui2+= (r1[it1] - prom[col1[it1] - 1]) * (r1[it1] - prom[col1[it1] - 1]);
+      sum_Ruj2+= (r2[it2] - prom[col2[it2] - 1]) * (r2[it2] - prom[col2[it2] - 1]);
+      it1++; it2++;
+      // n++;
+    }else if(col1[it1] < col2[it2]){
+      it1++;
+    }else{
+      it2++;
+    }
+  }
+  // if(std::isnan( (sum_xy / (sqrt(sum_x2)*sqrt(sum_y2)) ))){
+    // cout<<"n: "<<n<<" "<<" sum_xy: "<<sum_xy<<" sum_x2: "<<sum_x2<<" sum_y2: "<<sum_y2<<endl;
+  // }
+
+  return ((sum_Rui2 == 0) || (sum_Ruj2 == 0))? 0 : (sum_R / (sqrt(sum_Rui2)*sqrt(sum_Ruj2)));
+}
+
+
+__global__ void one2all_adjusted_cosine(float* d_averages, float* d_item_values, int* d_item_row_ind, int* d_item_col_ind, int* d_ind_items, int* d_item_row_size, float* d_distances, int id_movie, int max_movies){
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if(i < max_movies){
+    if(d_item_row_size[i] != 0){
+      float* r1 = float_pointer(d_item_values, d_ind_items, id_movie);
+      int* c1 = int_pointer(d_item_col_ind, d_ind_items, id_movie);
+      float* r2 = float_pointer(d_item_values, d_ind_items, i);
+      int* c2 = int_pointer(d_item_col_ind, d_ind_items, i);
+      d_distances[i] = d_cosine2(r1, c1, d_item_row_size[id_movie], r2, c2, d_item_row_size[i], d_averages);
+    }
+  }
+}
+
+__global__ void one2all_desviacion(float* d_item_values, int* d_item_row_ind, int* d_item_col_ind, int* d_ind_items, int* d_item_row_size, float* d_distances, int* d_cardinalidad, int id_movie, int max_movies){
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if(i < max_movies){
+    if(d_item_row_size[i] != 0){
+      float* r1 = float_pointer(d_item_values, d_ind_items, id_movie);
+      int* c1 = int_pointer(d_item_col_ind, d_ind_items, id_movie);
+      float* r2 = float_pointer(d_item_values, d_ind_items, i);
+      int* c2 = int_pointer(d_item_col_ind, d_ind_items, i);
+       d_desviacion(r1, c1, d_item_row_size[id_movie], r2, c2, d_item_row_size[i], d_cardinalidad[i], d_distances[i]);
+    }
+  }
+}
+
+
+void desviacion_one2all(float*& distances, int*& cardinalidad, int id_movie, int n_ratings, int max_movies,float*& d_item_values, int*& d_item_row_ind, int*& d_item_col_ind, int*& d_ind_items, int*& d_item_row_size){
+  float block_size = 256;
+  dim3 block =  dim3(block_size, 1, 1);
+  dim3 grid =  dim3(ceil(max_movies / block_size), 1);
+
+  distances = new float[max_movies];
+  float* d_distances = cuda_array<float>(max_movies);
+  cardinalidad = new int[max_movies];
+  int* d_cardinalidad = cuda_array<int>(max_movies);
+
+  one2all_desviacion<<<grid, block>>>(d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, d_distances, d_cardinalidad, id_movie, max_movies);
+  CHECK(cudaDeviceSynchronize());
+  cuda_D2H(d_distances, distances, max_movies);
+  cuda_D2H(d_cardinalidad, cardinalidad, max_movies);
+}
+
+
+
+
+void adjusted_cosine_one2all(float*& distances, int id_movie, int n_ratings, int max_movies,float*& d_item_values, int*& d_item_row_ind, int*& d_item_col_ind, int*& d_ind_items, int*& d_item_row_size, float*& d_averages){
+  float block_size = 256;
+  dim3 block =  dim3(block_size, 1, 1);
+  dim3 grid =  dim3(ceil(max_movies / block_size), 1);
+
+  distances = new float[max_movies];
+  float* d_distances = cuda_array<float>(max_movies);
+  one2all_adjusted_cosine<<<grid, block>>>(d_averages, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, d_distances, id_movie, max_movies);
+  CHECK(cudaDeviceSynchronize());
+  cuda_D2H(d_distances, distances, max_movies);
+}
+
 
 
 

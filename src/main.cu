@@ -35,6 +35,7 @@ int * d_ind_items, *d_item_row_size;
 
 // para coseno ajustado
 float *maxs, *mins, *averages;
+float * d_averages;
 
 
 
@@ -153,6 +154,8 @@ int main(int argc, char const *argv[]) {
   d_ind_items = cuda_array<int>(max_movies);
   d_item_row_size = cuda_array<int>(max_movies);
 
+  d_averages = cuda_array<float>(max_users);
+
 
 
 
@@ -174,7 +177,7 @@ int main(int argc, char const *argv[]) {
 
 
   average_per_user(values, ind_users, row_size, maxs, mins, averages, max_users);
-
+  cuda_H2D<float>(averages, d_averages, max_users);
 
 
 
@@ -265,9 +268,22 @@ int main(int argc, char const *argv[]) {
   int id_movie = 1;
 
   float* cosenos;
+  reloj j2;
+  j2.start();
   // desviaciones_one2all( desviaciones, cardinalidad, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie);
-  coseno_ajustado_one2all(cosenos, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie, maxs, mins, averages);
-
+  // coseno_ajustado_one2all(cosenos, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie, maxs, mins, averages);
+  // adjusted_cosine_one2all(cosenos, id_movie, n_ratings,max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, d_averages);
+  // for (size_t i = 0; i < 10; i++) {
+  //   if(row_size[i] != 0)
+  //     cout<<cosenos[i]<<endl;
+  // }
+  desviacion_one2all(desviaciones, cardinalidad, id_movie, n_ratings, max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size);
+  for (size_t i = 0; i < 10; i++) {
+    if(row_size[i] != 0)
+      cout<<desviaciones[i]<<"  ->  "<<cardinalidad[i]<<endl;
+  }
+  j2.stop();
+  cout<<"tiempo de uno a todos items: "<<j2.time()<<"ms"<<endl;
 
 
 
