@@ -305,8 +305,8 @@ void average_per_user(float *&values, int *&ind_users, int *&row_size, float*&ma
     max_ = 0; min_ = 5;
     sum = 0;
     if(row_size[i] != 0){
-      cout<<i<<endl;
-      cout<<row_size[i]<<" "<<ind_users[i]<<endl;
+      // cout<<i<<endl;
+      // cout<<row_size[i]<<" "<<ind_users[i]<<endl;
       for(size_t j=ind_users[i];j < ind_users[i]+row_size[i];j++){
         sum += values[j];
         if(max_< values[j]) max_= values[j];

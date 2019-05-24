@@ -9,7 +9,7 @@
 
 int map_n_ratings, map_n_users, map_n_movies;
 int n_ratings, n_users, n_movies;
-int n_ratings_20, n_users_20, n_ratings_27, n_users_27, n_ratings_l, n_users_l, n_movies_27;
+int n_ratings_20, n_users_20, n_ratings_27, n_users_27, n_movies_27, n_ratings_l, n_users_l, n_movies_l, n_ratings_l2, n_users_l2, n_movies_l2;
 int max_users = 300000;
 int max_movies = 200000;
 
@@ -100,11 +100,15 @@ void generate_item_arrays(){
 
 
 int main(int argc, char const *argv[]) {
-  // float* as = new float[4];
-  // for (size_t i = 0; i < 4; i++) {
-  //   if(as[i] == 0)
-  //     cout<<as[i]<<endl;
-  // }
+  float arr1[5] = {2,5,1,3,1};
+  int arr2[5] = {1,3,6,27,2};
+  for (size_t i = 0; i < 5; i++) {
+    cout<<arr1[i]<<" "<<arr2[i]<<endl;
+  }
+  cuda_order_descending<float, int>(arr1, arr2, 5);
+  for (size_t i = 0; i < 5; i++) {
+    cout<<arr1[i]<<" "<<arr2[i]<<endl;
+  }
 
   pthread_t thread1, thread2;
   const char *message1 = "Thread 1";
@@ -124,6 +128,9 @@ int main(int argc, char const *argv[]) {
   n_ratings_l = 49;
   n_users_l = 8;
 
+  n_ratings_l2 = 21;
+  n_users_l2 = 5;
+
   // n_ratings = n_ratings_20;
   // n_users = n_users_20;
 
@@ -131,8 +138,8 @@ int main(int argc, char const *argv[]) {
   n_users = n_users_27;
   // n_movies = n_movies_27;
 
-  // n_ratings = n_ratings_l;
-  // n_users = n_users_l;
+  // n_ratings = n_ratings_l2;
+  // n_users = n_users_l2;
 
 
 
@@ -148,13 +155,14 @@ int main(int argc, char const *argv[]) {
   d_ind_users = cuda_array<int>(max_users);
   d_row_size = cuda_array<int>(max_users);
 
+  d_averages = cuda_array<float>(max_users);
+
   d_item_values = cuda_array<float>(n_ratings);
   d_item_row_ind = cuda_array<int>(n_ratings);
   d_item_col_ind = cuda_array<int>(n_ratings);
   d_ind_items = cuda_array<int>(max_movies);
   d_item_row_size = cuda_array<int>(max_movies);
 
-  d_averages = cuda_array<float>(max_users);
 
 
 
@@ -168,8 +176,8 @@ int main(int argc, char const *argv[]) {
 
   reloj a;
   a.start();
-  read_ML_ratings("../databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
-  read_ML_ratings_items("../databases/ml-latest/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
+  read_ML_ratings("../collaborative_filtering/databases/ml-latest/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "27");
+  read_ML_ratings_items("../collaborative_filtering/databases/ml-latest/ratings.csv", n_ratings, n_users, max_movies, true,  item_values,  item_row_ind,  item_col_ind,  ind_items, item_row_size, "27");
   a.stop();
   cout<<"Tiempo de carga de bd: "<<a.time()<<"ms"<<endl;
   // read_ML_ratings("../collaborative_filtering/databases/libro/ratings.csv", n_ratings, n_users, true, values, row_ind, col_ind, ind_users, row_size, "l");
@@ -177,28 +185,36 @@ int main(int argc, char const *argv[]) {
 
 
   average_per_user(values, ind_users, row_size, maxs, mins, averages, max_users);
+  cout<<"Done"<<endl;
   cuda_H2D<float>(averages, d_averages, max_users);
 
-
-
-
-
-
-  iret1 = pthread_create( &thread1, NULL, get_map_users, (void*) message1);
-  if(iret1){
-    fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-    exit(EXIT_FAILURE);
+  int n = 0;
+  for (size_t i = 0; i < max_movies; i++) {
+    if(item_row_size[i] != 0){
+      n++;
+    }
   }
-  printf("pthread_create() for thread 1 returns: %d\n",iret1);
 
-  iret2 = pthread_create( &thread2, NULL, get_map_items, (void*) message1);
-  if(iret2){
-    fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
-    exit(EXIT_FAILURE);
-  }
-  printf("pthread_create() for thread 1 returns: %d\n",iret2);
+  cout<<"n: "<<n<<endl;
 
 
+
+  //
+  // iret1 = pthread_create( &thread1, NULL, get_map_users, (void*) message1);
+  // if(iret1){
+  //   fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
+  //   exit(EXIT_FAILURE);
+  // }
+  // printf("pthread_create() for thread 1 returns: %d\n",iret1);
+  //
+  // iret2 = pthread_create( &thread2, NULL, get_map_items, (void*) message1);
+  // if(iret2){
+  //   fprintf(stderr,"Error - pthread_create() return code: %d\n",iret2);
+  //   exit(EXIT_FAILURE);
+  // }
+  // printf("pthread_create() for thread 1 returns: %d\n",iret2);
+  //
+  //
 
 
 
@@ -268,21 +284,39 @@ int main(int argc, char const *argv[]) {
   int id_movie = 1;
 
   float* cosenos;
+  int k = 10;
   reloj j2;
   j2.start();
   // desviaciones_one2all( desviaciones, cardinalidad, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie);
   // coseno_ajustado_one2all(cosenos, b_dists, item_values, item_row_ind, item_col_ind, ind_items, item_row_size, values, row_ind, col_ind, ind_users, row_size, d_values, d_row_ind, d_col_ind, d_ind_users, d_row_size, n_movies, max_movies, id_movie, maxs, mins, averages);
-  // adjusted_cosine_one2all(cosenos, id_movie, n_ratings,max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, d_averages);
-  // for (size_t i = 0; i < 10; i++) {
-  //   if(row_size[i] != 0)
-  //     cout<<cosenos[i]<<endl;
+
+  // adjusted_cosine_one2all(cosenos, id_movie, n_ratings, max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size, d_averages);
+  // for (size_t i = 0; i < 5; i++) {
+  //   if(item_row_size[i] != 0)
+  //     cout<<"i: "<<i<<" -> "<<cosenos[i]<<endl;
   // }
   desviacion_one2all(desviaciones, cardinalidad, id_movie, n_ratings, max_movies, d_item_values, d_item_row_ind, d_item_col_ind, d_ind_items, d_item_row_size);
-  for (size_t i = 0; i < 10; i++) {
+  for (size_t i = 0; i < 4; i++) {
     if(row_size[i] != 0)
       cout<<desviaciones[i]<<"  ->  "<<cardinalidad[i]<<endl;
   }
   j2.stop();
+
+
+  cout<<"KNNS"<<endl;
+  vector<pair<int, float> > knns = knn_less_map(desviaciones, item_row_size, max_movies, id_movie, k);
+  // vector<pair<int, float> > knns = knn_greater_map(cosenos, item_row_size, max_movies, id_movie, k);
+
+  for (size_t i = 0; i < k; i++) {
+    // if(knns[i].first == 1)
+      cout<<knns[i].first<<" --> "<<knns[i].second<<endl;
+  }
+  // cout<<cosenos[1]<<" "<<cosenos[31205]<<endl;
+  // cout<<(cosenos[1] > cosenos[31205])<<endl;
+  // cout<<(cosenos[1] < cosenos[31205])<<endl;
+  // cout<<(cosenos[1] == cosenos[31205])<<endl;
+
+
   cout<<"tiempo de uno a todos items: "<<j2.time()<<"ms"<<endl;
 
 
@@ -293,62 +327,7 @@ int main(int argc, char const *argv[]) {
 
 
 
-  cout<<endl<<endl<<endl;
 
-  // float* r1 = float_pointer(values, ind_users, 1);
-  // int* c1 = int_pointer(col_ind, ind_users, 1);
-  // for (size_t i = 0; i < row_size[1]; i++) {
-  //   cout<<c1[i]<<" -> "<<r1[i]<<endl;
-  // }
-
-  float* r1 = float_pointer(item_values, ind_items, 1);
-  int* c1 = int_pointer(item_col_ind, ind_items, 1);
-  for (size_t i = 0; i < 10; i++) {
-    cout<<c1[i]<<" -> "<<r1[i]<<endl;
-  }
-
-
-  cout<<"------------------"<<endl;
-
-  pthread_join( thread1, NULL);
-  pthread_join( thread2, NULL);
-  cout<<"Size map: "<<map_users.size()<<" "<<map_items.size()<<endl;
-
-  // auto it = map_users.find(1);
-  // if(it == map_users.end())
-  //   cout <<"not found!!!"<<endl;
-  // else
-  // for (auto ite = it->second->begin(); ite != it->second->end(); ite++) {
-  //   cout<<ite->first<<" -> "<<ite->second<<endl;
-  // }
-
-  auto it = map_items.find(1);
-  int k1 = 0;
-  if(it == map_items.end())
-    cout <<"not found!!!"<<endl;
-  else
-  for (auto ite = it->second->begin(); (k1 < 10) && ite != it->second->end(); ite++) {
-    cout<<ite->first<<" -> "<<ite->second<<endl;
-    k1++;
-  }
-
-  cout<<"------------------"<<endl;
-
-
-  reloj p;
-  p.start();
-  generate_user_arrays();
-  generate_item_arrays();
-  p.stop();
-  cout<<"Tiempo de generacion de user arrays"<<p.time()<<"ms"<<endl;
-
-
-
-  r1 = float_pointer(item_values, ind_items, 1);
-  c1 = int_pointer(item_col_ind, ind_items, 1);
-  for (size_t i = 0; i < 10; i++) {
-    cout<<c1[i]<<" -> "<<r1[i]<<endl;
-  }
 
 
   return 0;
